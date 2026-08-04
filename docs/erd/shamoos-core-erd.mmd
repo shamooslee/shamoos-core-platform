@@ -1,0 +1,38 @@
+erDiagram
+    ORGANIZATION ||--o{ MEMBER : has
+    ORGANIZATION ||--o{ CUSTOMER : owns
+    ORGANIZATION ||--o{ PRODUCT : owns
+    ORGANIZATION ||--o{ PROJECT : owns
+    ORGANIZATION ||--o{ TEMPLATE : owns
+    ORGANIZATION ||--o{ AI_PROMPT : owns
+    ORGANIZATION ||--o{ DOCUMENT : owns
+    ORGANIZATION ||--o{ MEETING : owns
+    ORGANIZATION ||--o{ TASK : owns
+    ORGANIZATION ||--o{ ACTIVITY : logs
+
+    MEMBER ||--o{ MEMBER_ROLE : assigned
+    ROLE ||--o{ MEMBER_ROLE : contains
+    ROLE ||--o{ ROLE_PERMISSION : has
+    PERMISSION ||--o{ ROLE_PERMISSION : granted
+
+    CUSTOMER ||--o{ PROJECT : sponsors
+    PRODUCT ||--o{ PROJECT : delivered_as
+    PRODUCT ||--o{ FEATURE : contains
+    PROJECT ||--o{ MEETING : has
+    PROJECT ||--o{ TASK : tracks
+    PROJECT ||--o{ DOCUMENT : records
+    PROJECT ||--o{ DECISION_LOG : records
+
+    MEETING ||--o{ MEETING_ATTENDEE : includes
+    MEMBER ||--o{ MEETING_ATTENDEE : attends
+    MEETING ||--o{ DECISION_LOG : produces
+
+    DOCUMENT ||--o{ DOCUMENT_VERSION : versions
+    DOCUMENT ||--o{ ATTACHMENT : attaches
+    DOCUMENT ||--o{ ASSET : references
+    TEMPLATE ||--o{ DOCUMENT : instantiates
+
+    PROJECT ||--o{ PROJECT_CUSTOM_FIELD : extends
+    PRODUCT ||--o{ PRODUCT_EXTENSION : extends
+
+    AI_PROMPT ||--o{ PROMPT_VERSION : versions

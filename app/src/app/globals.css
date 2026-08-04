@@ -1,0 +1,18 @@
+:root {
+  color-scheme: light;
+  --bg: #f6f2ea;
+  --fg: #151515;
+  --muted: #5f5a52;
+  --accent: #d96c4b;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+a {
+  color: var(--accent);
+}

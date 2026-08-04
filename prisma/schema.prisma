@@ -1,0 +1,423 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String      @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String      @unique
+  type        String      @default("studio")
+  description String?
+  status      String      @default("active")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at")
+  members     Member[]
+  customers   Customer[]
+  products    Product[]
+  projects    Project[]
+  templates   Template[]
+  aiPrompts   AiPrompt[]
+  documents   Document[]
+  meetings    Meeting[]
+  tasks       Task[]
+  activities  Activity[]
+
+  @@map("organizations")
+}
+
+model Member {
+  id           String      @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  authUserId   String?     @unique @map("auth_user_id") @db.Uuid
+  email        String
+  displayName  String?     @map("display_name")
+  avatarUrl    String?     @map("avatar_url")
+  status       String      @default("active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberRoles  MemberRole[]
+  meetingsCreated Meeting[] @relation("MeetingCreatedBy")
+  tasksAssigned Task[] @relation("TaskAssignee")
+  tasksReported Task[] @relation("TaskReporter")
+  decisionsMade DecisionLog[] @relation("DecisionDecidedBy")
+  documentVersionsCreated DocumentVersion[]
+  promptVersionsCreated PromptVersion[]
+  activitiesAsActor Activity[]
+
+  @@unique([organizationId, email])
+  @@map("members")
+}
+
+model Role {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  key            String
+  name           String
+  description    String?
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at")
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberRoles    MemberRole[]
+  rolePermissions RolePermission[]
+
+  @@unique([organizationId, key])
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  key         String           @unique
+  name        String
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model MemberRole {
+  memberId String @map("member_id") @db.Uuid
+  roleId   String @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([memberId, roleId])
+  @@map("member_roles")
+}
+
+model RolePermission {
+  roleId String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Customer {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  name          String
+  legalName     String?     @map("legal_name")
+  slug          String?
+  status        String      @default("active")
+  contactEmail  String?     @map("contact_email")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projects      Project[]
+
+  @@unique([organizationId, name])
+  @@map("customers")
+}
+
+model Product {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  name           String
+  slug           String
+  stage          String      @default("idea")
+  description    String?
+  status         String      @default("active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  features       Feature[]
+  projects       Project[]
+  extensions     ProductExtension[]
+
+  @@unique([organizationId, slug])
+  @@map("products")
+}
+
+model Feature {
+  id          String   @id @default(uuid()) @db.Uuid
+  productId   String   @map("product_id") @db.Uuid
+  key         String
+  name        String
+  status      String   @default("planned")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, key])
+  @@map("features")
+}
+
+model Project {
+  id          String      @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  customerId  String?      @map("customer_id") @db.Uuid
+  productId   String?      @map("product_id") @db.Uuid
+  name        String
+  code        String?
+  status      String      @default("active")
+  startDate   DateTime?   @map("start_date")
+  endDate     DateTime?   @map("end_date")
+  budget      Decimal?    @db.Decimal(14, 2)
+  currency    String      @default("KRW")
+  description String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer   Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  product    Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  meetings   Meeting[]
+  decisionLogs DecisionLog[]
+  tasks      Task[]
+  documents  Document[]
+  customFields ProjectCustomField[]
+
+  @@map("projects")
+}
+
+model Meeting {
+  id          String   @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  projectId   String?  @map("project_id") @db.Uuid
+  title       String
+  meetingAt   DateTime? @map("meeting_at")
+  meetingType String   @default("internal") @map("meeting_type")
+  status      String   @default("scheduled")
+  notes       String?
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy  Member?  @relation("MeetingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  attendees  MeetingAttendee[]
+  decisions  DecisionLog[]
+
+  @@map("meetings")
+}
+
+model MeetingAttendee {
+  id          String   @id @default(uuid()) @db.Uuid
+  meetingId   String   @map("meeting_id") @db.Uuid
+  memberId    String?  @map("member_id") @db.Uuid
+  attendeeName String? @map("attendee_name")
+  attendeeEmail String? @map("attendee_email")
+  attendanceStatus String  @default("pending") @map("attendance_status")
+  createdAt   DateTime @default(now()) @map("created_at")
+  meeting     Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  member      Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([meetingId, memberId, attendeeEmail])
+  @@map("meeting_attendees")
+}
+
+model DecisionLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  projectId   String?  @map("project_id") @db.Uuid
+  meetingId   String?  @map("meeting_id") @db.Uuid
+  title       String
+  decision    String
+  rationale   String?
+  alternatives String?
+  decidedById String?  @map("decided_by") @db.Uuid
+  decidedAt   DateTime @default(now()) @map("decided_at")
+  status      String   @default("approved")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  meeting    Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  decidedBy  Member?  @relation("DecisionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@map("decision_logs")
+}
+
+model Task {
+  id          String   @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  projectId   String?  @map("project_id") @db.Uuid
+  title       String
+  description String?
+  status      String   @default("todo")
+  priority    String   @default("medium")
+  assigneeId  String?  @map("assignee_id") @db.Uuid
+  reporterId  String?  @map("reporter_id") @db.Uuid
+  dueDate     DateTime? @map("due_date")
+  estimatePoints Decimal? @map("estimate_points") @db.Decimal(6, 2)
+  sprintKey   String?  @map("sprint_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  assignee   Member?  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reporter   Member?  @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+
+  @@map("tasks")
+}
+
+model Template {
+  id          String   @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  key         String
+  name        String
+  category    String
+  content     Json
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents   Document[]
+
+  @@unique([organizationId, key])
+  @@map("templates")
+}
+
+model Document {
+  id          String   @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  projectId   String?  @map("project_id") @db.Uuid
+  templateId  String?  @map("template_id") @db.Uuid
+  title       String
+  docType     String   @map("doc_type")
+  content     Json
+  status      String   @default("draft")
+  version     Int      @default(1)
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  template   Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy  Member?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  versions   DocumentVersion[]
+  assets     Asset[]
+  attachments Attachment[]
+
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  version     Int
+  content     Json
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdBy   Member?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, version])
+  @@map("document_versions")
+}
+
+model Asset {
+  id          String   @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  documentId  String?  @map("document_id") @db.Uuid
+  name        String
+  fileUrl     String?  @map("file_url")
+  mimeType    String?  @map("mime_type")
+  storageProvider String? @map("storage_provider")
+  metadata    Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  attachments Attachment[]
+
+  @@map("assets")
+}
+
+model Attachment {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  assetId     String?  @map("asset_id") @db.Uuid
+  name        String
+  fileUrl     String   @map("file_url")
+  mimeType    String?  @map("mime_type")
+  createdAt   DateTime @default(now()) @map("created_at")
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  asset       Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@map("attachments")
+}
+
+model AiPrompt {
+  id          String   @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  key         String
+  name        String
+  category    String
+  purpose     String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  versions    PromptVersion[]
+
+  @@unique([organizationId, key])
+  @@map("ai_prompts")
+}
+
+model PromptVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  aiPromptId  String   @map("ai_prompt_id") @db.Uuid
+  version     Int
+  promptText  String   @map("prompt_text")
+  variables   Json
+  modelConfig Json     @map("model_config")
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  aiPrompt    AiPrompt @relation(fields: [aiPromptId], references: [id], onDelete: Cascade)
+  createdBy   Member?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([aiPromptId, version])
+  @@map("prompt_versions")
+}
+
+model Activity {
+  id          String   @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  actorMemberId String? @map("actor_member_id") @db.Uuid
+  entityType  String   @map("entity_type")
+  entityId    String?  @map("entity_id") @db.Uuid
+  action      String
+  payload     Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actorMember Member?  @relation(fields: [actorMemberId], references: [id], onDelete: SetNull)
+
+  @@map("activities")
+}
+
+model ProductExtension {
+  id          String   @id @default(uuid()) @db.Uuid
+  productId   String   @map("product_id") @db.Uuid
+  key         String
+  data        Json
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, key])
+  @@map("product_extensions")
+}
+
+model ProjectCustomField {
+  id          String   @id @default(uuid()) @db.Uuid
+  projectId   String   @map("project_id") @db.Uuid
+  fieldKey    String   @map("field_key")
+  fieldValue  Json     @map("field_value")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, fieldKey])
+  @@map("project_custom_fields")
+}

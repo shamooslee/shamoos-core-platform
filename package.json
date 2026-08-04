@@ -1,0 +1,14 @@
+{
+  "name": "shamoos-core-platform",
+  "private": true,
+  "version": "1.0.0",
+  "description": "SHAMOOS Studio Core Data Platform",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "seed:sql": "psql \"$DATABASE_URL\" -f sql/seed-data.sql",
+    "seed:prisma": "prisma db seed"
+  }
+}
